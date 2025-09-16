@@ -1,0 +1,213 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rover Dashboard</title>
+  <style>
+    :root {
+      --primary: #E0E1DD;
+      --secondary: #778DA9;
+      --accent: #415A77;
+      --dark: #384959;
+      --white: #ffffff;
+      --line: #dcdcdc;
+      --connected: #28a745;
+      --disconnected: #dc3545;
+    }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--primary); color: var(--dark); }
+    header { background: var(--accent); color: var(--white); padding: 15px 25px; text-align: center; font-size: 2rem; font-weight: bold; }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr); /* 3 equal cards in a row */
+      gap: 20px;
+      padding: 30px;
+    }
+    .card {
+      background: var(--white);
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .card h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      margin-bottom: 15px;
+      color: var(--secondary);
+    }
+    .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .label { font-size: 1rem; font-weight: 500; }
+    .value { font-size: 1rem; font-weight: bold; color: var(--dark); }
+
+    .status-container { display: flex; justify-content: center; margin-top: 20px; }
+    .status { font-size: 1.6rem; font-weight: bold; }
+    .connected { color: var(--connected); }
+    .disconnected { color: var(--disconnected); }
+
+    /* Logs */
+    #logsWrapper { grid-column: 1 / -1; }
+    #logsContainer {
+      margin-top: 10px;
+      max-height: 400px;   /* fixed height */
+      overflow-y: auto;    /* scrollable */
+      padding-right: 8px;
+    }
+    .log-entry {
+      background: var(--primary);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+    }
+    .log-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .log-timestamp { font-weight: bold; color: var(--secondary); }
+    .log-status { font-weight: bold; font-size: 0.8rem; padding: 3px 8px; border-radius: 8px; width: fit-content; }
+    .connected-status { background: #d1fae5; color: #028a0f; }
+    .disconnected-status { background: #fde2e1; color: #dc3545; }
+    .log-details { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px 20px; }
+    .log-details div { display: flex; flex-direction: column; }
+    .log-row-label { font-weight: 500; color: var(--secondary); }
+    .log-row-value { font-weight: bold; color: var(--dark); }
+  </style>
+</head>
+<body>
+<header>Rover Telemetry Dashboard</header>
+
+<div class="container">
+  <div class="card">
+    <h1>Vehicle Status</h1>
+    <div class="row"><span class="label">Mode</span><span class="value" id="mode">0</span></div>
+    <div class="row"><span class="label">Speed</span><span class="value" id="speed">0</span></div>
+    <div class="row"><span class="label">Shearing Arm</span><span class="value" id="shearingarm">0</span></div>
+  </div>
+  <div class="card">
+    <h1>Steering & Control</h1>
+    <div class="row"><span class="label">Steering Angle</span><span class="value" id="angle">0°</span></div>
+    <div class="row"><span class="label">Steering Mode</span><span class="value" id="steeringmode">0</span></div>
+    <div class="row"><span class="label">Joystick</span><span class="value" id="joystick">0</span></div>
+  </div>
+  <div class="card">
+    <h1>Connection Health</h1>
+    <div class="row"><span class="label">Heartbeat Status</span><span class="value" id="heartbeat">0</span></div>
+    <div class="row"><span class="label">Last Update</span><span class="value" id="lastupdate">--</span></div>
+    <div class="status-container"><span id="status" class="status disconnected">Disconnected</span></div>
+  </div>
+
+  <div class="card" id="logsWrapper">
+    <h1>Telemetry Log</h1>
+    <div id="logsContainer"></div>
+  </div>
+
+  <!-- GNSS Data Card Added -->
+  <div class="card" id="gnssWrapper">
+    <h1>GNSS Data</h1>
+    <div class="row"><span class="label">Latitude</span><span class="value" id="latitude">--</span></div>
+    <div class="row"><span class="label">Longitude</span><span class="value" id="longitude">--</span></div>
+  </div>
+</div>
+
+<script>
+const ROVER_ID = "rover1";
+const POLL_INTERVAL = 5000; // ms
+
+function isHeartbeatValid(hb) {
+  return hb >= 1 && hb <= 255;
+}
+
+async function fetchRoverData() {
+  try {
+    let res = await fetch(`/rover/${ROVER_ID}`);
+    if (!res.ok) return;
+    let data = await res.json();
+    if (data.success) {
+      let d = data.data;
+      document.getElementById("mode").innerText = d.mode ?? 0;
+      document.getElementById("speed").innerText = d.speed ?? 0;
+      document.getElementById("shearingarm").innerText = d.shearingarm ?? 0;
+      document.getElementById("angle").innerText = (d.angle ?? 0) + "°";
+      document.getElementById("steeringmode").innerText = d.steeringmode ?? 0;
+      document.getElementById("joystick").innerText = d.joystick ?? 0;
+      document.getElementById("heartbeat").innerText = d.heartbeat ?? 0;
+
+      let statusEl = document.getElementById("status");
+      if (isHeartbeatValid(d.heartbeat)) {
+        statusEl.innerText = "Connected";
+        statusEl.className = "status connected";
+      } else {
+        statusEl.innerText = "Disconnected";
+        statusEl.className = "status disconnected";
+      }
+
+      document.getElementById("lastupdate").innerText = new Date().toLocaleString();
+
+      // GNSS updates
+      document.getElementById("latitude").innerText = d.gps?.latitude ?? "--";
+      document.getElementById("longitude").innerText = d.gps?.longitude ?? "--";
+    }
+  } catch (err) {
+    console.log("fetchRoverData error:", err);
+  }
+}
+
+async function fetchRoverLogs() {
+  try {
+    let res = await fetch(`/rover-logs/${ROVER_ID}`);
+    if (!res.ok) return;
+    let json = await res.json();
+    let logs = json.data ?? [];
+    let container = document.getElementById("logsContainer");
+    container.innerHTML = "";
+    logs.forEach(log=>{
+      let ts = "--";
+      if (log.timestamp) {
+        if (log.timestamp.seconds) ts = new Date(log.timestamp.seconds*1000).toLocaleTimeString();
+        else if (log.timestamp._seconds) ts = new Date(log.timestamp._seconds*1000).toLocaleTimeString();
+        else ts = new Date(log.timestamp).toLocaleTimeString();
+      }
+      let entry=document.createElement("div"); entry.className="log-entry";
+      let header=document.createElement("div"); header.className="log-header";
+      let tsEl=document.createElement("span"); tsEl.className="log-timestamp"; tsEl.innerText=ts;
+
+      let hbValid = isHeartbeatValid(log.heartbeat);
+      let statusEl=document.createElement("span");
+      statusEl.className="log-status " + (hbValid ? "connected-status":"disconnected-status");
+      statusEl.innerText=hbValid ? "Connected" : "Disconnected";
+
+      header.appendChild(tsEl); header.appendChild(statusEl); entry.appendChild(header);
+
+      let details=document.createElement("div"); details.className="log-details";
+
+      const addDetail = (label, value)=>{
+        let col = document.createElement("div");
+        let l = document.createElement("div"); l.className="log-row-label"; l.innerText=label;
+        let v = document.createElement("div"); v.className="log-row-value"; v.innerText=value ?? "--";
+        col.appendChild(l); col.appendChild(v);
+        details.appendChild(col);
+      };
+
+      addDetail("Lat", log.gps?.latitude ?? log.lat ?? "--");
+      addDetail("Lon", log.gps?.longitude ?? log.lon ?? "--");
+      addDetail("Speed", log.speed ?? "--");
+      addDetail("Alt", log.alt ?? "--");
+
+      entry.appendChild(details);
+      container.appendChild(entry);
+    });
+  } catch (err) {
+    console.log("fetchRoverLogs error:", err);
+  }
+}
+
+async function mainLoop(){
+  await fetchRoverData();
+  await fetchRoverLogs();
+  setTimeout(mainLoop, POLL_INTERVAL);
+}
+
+mainLoop();
+</script>
+</body>
+</html>
