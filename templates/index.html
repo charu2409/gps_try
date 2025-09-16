@@ -21,7 +21,7 @@
 
     .container {
       display: grid;
-      grid-template-columns: repeat(3, 1fr); /* 3 equal cards in a row */
+      grid-template-columns: repeat(3, 1fr);
       gap: 20px;
       padding: 30px;
     }
@@ -50,8 +50,8 @@
     #logsWrapper { grid-column: 1 / -1; }
     #logsContainer {
       margin-top: 10px;
-      max-height: 400px;   /* fixed height */
-      overflow-y: auto;    /* scrollable */
+      max-height: 400px;
+      overflow-y: auto;
       padding-right: 8px;
     }
     .log-entry {
@@ -101,11 +101,12 @@
     <div id="logsContainer"></div>
   </div>
 
-  <!-- GNSS Data Card Added -->
+  <!-- GNSS Data Card -->
   <div class="card" id="gnssWrapper">
     <h1>GNSS Data</h1>
     <div class="row"><span class="label">Latitude</span><span class="value" id="latitude">--</span></div>
     <div class="row"><span class="label">Longitude</span><span class="value" id="longitude">--</span></div>
+    <div class="row"><span class="label">Timestamp</span><span class="value" id="gnss_timestamp">--</span></div>
   </div>
 </div>
 
@@ -143,12 +144,35 @@ async function fetchRoverData() {
 
       document.getElementById("lastupdate").innerText = new Date().toLocaleString();
 
-      // GNSS updates
+      // GNSS updates from rover doc if available
       document.getElementById("latitude").innerText = d.gps?.latitude ?? "--";
       document.getElementById("longitude").innerText = d.gps?.longitude ?? "--";
     }
   } catch (err) {
     console.log("fetchRoverData error:", err);
+  }
+}
+
+async function fetchGNSSLatest() {
+  try {
+    let res = await fetch(`/gnss/latest`);
+    if (!res.ok) return;
+    let json = await res.json();
+    if (json.success && json.data) {
+      let d = json.data;
+      document.getElementById("latitude").innerText = d.latitude ?? "--";
+      document.getElementById("longitude").innerText = d.longitude ?? "--";
+
+      let ts = "--";
+      if (d.timestamp) {
+        if (d.timestamp.seconds) ts = new Date(d.timestamp.seconds*1000).toLocaleString();
+        else if (d.timestamp._seconds) ts = new Date(d.timestamp._seconds*1000).toLocaleString();
+        else ts = new Date(d.timestamp).toLocaleString();
+      }
+      document.getElementById("gnss_timestamp").innerText = ts;
+    }
+  } catch (err) {
+    console.log("fetchGNSSLatest error:", err);
   }
 }
 
@@ -203,6 +227,7 @@ async function fetchRoverLogs() {
 
 async function mainLoop(){
   await fetchRoverData();
+  await fetchGNSSLatest();
   await fetchRoverLogs();
   setTimeout(mainLoop, POLL_INTERVAL);
 }
