@@ -12,7 +12,7 @@ FIREBASE_KEY = os.environ.get("FIREBASE_KEY")
 
 if not FIREBASE_KEY:
     # For local dev you can put path to JSON file in FIREBASE_LOCAL_PATH env var
-    local_path = os.environ.get(""C:\Users\charu\Downloads\rover-gps-firebase-adminsdk-fbsvc-764c982a6d.json"")
+    local_path = os.environ.get("C:\Users\charu\Downloads\rover-gps-firebase-adminsdk-fbsvc-764c982a6d.json")
     if local_path and os.path.exists(local_path):
         cred = credentials.Certificate(local_path)
     else:
