@@ -35,7 +35,7 @@ gnss_logs = db.collection("gnss_logs")
 def home():
     return render_template("index.html")
 
-# POST update rover (used if you want to post to Render backend instead of writing to Firebase locally)
+# POST update rover
 @app.route("/rover", methods=["POST"])
 def create_or_update_rover():
     data = request.get_json()
@@ -43,7 +43,6 @@ def create_or_update_rover():
         return jsonify({"success": False, "error": "JSON with 'id' field required"}), 400
 
     doc_id = data["id"].strip()
-    # use SERVER_TIMESTAMP for timestamp fields
     timestamp = firestore.SERVER_TIMESTAMP
 
     rover_col.document(doc_id).set({**data, "timestamp": timestamp})
@@ -64,6 +63,17 @@ def get_logs_for_rover(rover_id):
     docs = rover_logs.where("id", "==", rover_id).order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
     logs = [{"log_id": doc.id, **doc.to_dict()} for doc in docs]
     return jsonify({"success": True, "data": logs}), 200
+
+# POST GNSS log (with timestamp)
+@app.route("/gnss", methods=["POST"])
+def create_gnss():
+    data = request.get_json()
+    if not data or not data.get("latitude") or not data.get("longitude"):
+        return jsonify({"success": False, "error": "JSON with 'latitude' and 'longitude' required"}), 400
+
+    timestamp = firestore.SERVER_TIMESTAMP
+    gnss_logs.add({**data, "timestamp": timestamp})
+    return jsonify({"success": True, "message": "GNSS data logged"}), 201
 
 # Latest GNSS
 @app.route("/gnss/latest", methods=["GET"])
