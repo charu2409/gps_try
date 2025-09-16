@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, render_template
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-app = Flask(__name__, static_folder=".", template_folder=".")
+app = Flask(__name__)
 
 # --- Firebase init ---
 FIREBASE_KEY = os.environ.get("FIREBASE_KEY")
@@ -33,7 +33,7 @@ gnss_logs = db.collection("gnss_logs")
 # Serve the index.html placed at the repo root
 @app.route("/")
 def home():
-    return app.send_static_file("index.html")
+    return render_template("index.html")
 
 # POST update rover (used if you want to post to Render backend instead of writing to Firebase locally)
 @app.route("/rover", methods=["POST"])
